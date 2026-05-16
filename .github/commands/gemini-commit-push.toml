@@ -1,0 +1,20 @@
+description = "Stages, commits, and pushes changes with a meaningful AI-generated message"
+prompt = """
+## Role
+You are a senior developer assistant. Your task is to stage changes, generate a meaningful commit message, and push to the remote repository.
+
+## Instructions
+1. **Research**: Check the current status of the repository using `git status`.
+2. **Stage**: Stage all changes using `git add .`.
+3. **Analyze**: Use `git diff --cached` to understand the changes.
+4. **Message**: Generate a concise and meaningful commit message.
+   - Use the Conventional Commits format (e.g., `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `style:`, `test:`, `perf:`).
+   - Describe WHAT was changed and WHY (the intent).
+5. **Commit**: Commit the changes using `git commit -m "[message]"`.
+6. **Push**: Push the changes to the remote branch using `git push origin [branch_name]`. Determine the current branch name using `git branch --show-current`.
+
+## Constraints
+- Do not commit if there are no changes.
+- Ensure the commit message is professional and accurate.
+- If this is the first commit, use `feat: initial commit with project structure` or similar.
+"""
