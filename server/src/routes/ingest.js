@@ -1,62 +1,77 @@
 const express = require('express')
 const multer = require('multer')
-const { getDocument } = require('pdfjs-dist/legacy/build/pdf.mjs')
 const { pool } = require('../db')
-const { chunkText } = require('../services/chunker')
-const { embedText } = require('../services/ai')
 const { authenticateToken } = require('../middleware/auth')
+const { extractText } = require('../services/pdf')
+const { chunkText } = require('../services/chunker')
+const { embedText, summarizeContract, extractClauses } = require('../services/ai')
 
 const router = express.Router()
 const upload = multer({ storage: multer.memoryStorage() })
 
-const extractText = async (buffer) => {
-  const pdf = await getDocument({ data: new Uint8Array(buffer) }).promise
-  let text = ''
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const content = await page.getTextContent()
-    text += content.items.map(item => item.str).join(' ') + '\n'
+// In-memory background processor
+const processDocument = async (documentId, buffer) => {
+  try {
+    console.log(`[Processing] Started document ${documentId}`)
+    
+    // 1. Update status to processing
+    await pool.query('UPDATE documents SET status = $1 WHERE id = $2', ['processing', documentId])
+
+    // 2. Extract Text
+    const text = await extractText(buffer)
+
+    // 3. Summarize & Extract Clauses (AI tasks)
+    const summary = await summarizeContract(text)
+    const clauses = await extractClauses(text)
+
+    // 4. Chunk & Embed
+    const chunks = chunkText(text)
+    const BATCH_SIZE = 50
+
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const batch = chunks.slice(i, i + BATCH_SIZE)
+      await Promise.all(batch.map(async (chunk, j) => {
+        const idx = i + j
+        const embedding = await embedText(chunk)
+        await pool.query(
+          `INSERT INTO chunks (document_id, chunk_index, chunk_text, embedding, tsv)
+           VALUES ($1, $2, $3, $4, to_tsvector('english', $3))`,
+          [documentId, idx, chunk, JSON.stringify(embedding)]
+        )
+      }))
+    }
+
+    // 5. Final update
+    await pool.query(
+      'UPDATE documents SET status = $1, summary = $2, clauses = $3 WHERE id = $4',
+      ['completed', summary, JSON.stringify(clauses), documentId]
+    )
+
+    console.log(`[Processing] Finished document ${documentId}`)
+
+  } catch (err) {
+    console.error(`[Processing] Error processing document ${documentId}:`, err)
+    await pool.query('UPDATE documents SET status = $1 WHERE id = $2', ['failed', documentId])
   }
-  return text
 }
 
 router.post('/ingest', authenticateToken, upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No PDF uploaded' })
 
-    console.log(`Processing: ${req.file.originalname} for user ${req.user.id}`)
-
-    const text = await extractText(req.file.buffer)
-
     const { rows } = await pool.query(
-      'INSERT INTO documents (filename, user_id) VALUES ($1, $2) RETURNING id',
-      [req.file.originalname, req.user.id]
+      'INSERT INTO documents (filename, user_id, status) VALUES ($1, $2, $3) RETURNING id',
+      [req.file.originalname, req.user.id, 'pending']
     )
     const documentId = rows[0].id
 
-    const chunks = chunkText(text)
-    console.log(`Split into ${chunks.length} chunks`)
+    // Start processing in the background (fire and forget) without blocking the HTTP response
+    // We pass a clone of the buffer to be safe, although memoryStorage buffers are usually stable
+    processDocument(documentId, req.file.buffer).catch(console.error)
 
-    const BATCH_SIZE = 100
+    console.log(`[Queue-Simulator] Processing document ${documentId} for user ${req.user.id}`)
 
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    const batch = chunks.slice(i, i + BATCH_SIZE)
-    
-    await Promise.all(batch.map(async (chunk, j) => {
-        const idx = i + j
-        const embedding = await embedText(chunk)
-        await pool.query(
-        `INSERT INTO chunks (document_id, chunk_index, chunk_text, embedding)
-        VALUES ($1, $2, $3, $4)`,
-        [documentId, idx, chunk, JSON.stringify(embedding)]
-        )
-    }))
-
-    console.log(`Embedded chunks ${i + 1}–${Math.min(i + BATCH_SIZE, chunks.length)}/${chunks.length}`)
-    
-    }
-
-    res.json({ documentId, chunks: chunks.length, filename: req.file.originalname })
+    res.json({ documentId, status: 'pending', filename: req.file.originalname })
 
   } catch (err) {
     console.error(err)

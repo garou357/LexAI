@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Upload, FileUp } from 'lucide-react'
 
-const UploadZone = ({ onUploadSuccess }) => {
+const UploadZone = ({ onUploadSuccess, token }) => {
   const [isUploading, setIsUploading] = useState(false)
 
   const handleFileChange = async (e) => {
@@ -15,6 +15,7 @@ const UploadZone = ({ onUploadSuccess }) => {
     try {
       const res = await fetch('/api/ingest', {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       })
       if (res.ok) {

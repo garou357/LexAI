@@ -7,7 +7,7 @@ const router = express.Router()
 router.get('/documents', authenticateToken, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT d.id, d.filename, d.created_at, COUNT(c.id)::int as chunks
+      SELECT d.id, d.filename, d.status, d.summary, d.clauses, d.created_at, COUNT(c.id)::int as chunks
       FROM documents d
       LEFT JOIN chunks c ON d.id = c.document_id
       WHERE d.user_id = $1

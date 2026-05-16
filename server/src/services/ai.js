@@ -30,4 +30,39 @@ const streamAnswer = async (question, contextChunks) => {
   return stream
 }
 
-module.exports = { embedText, streamAnswer }
+const summarizeContract = async (text) => {
+  const res = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a legal expert. Provide a concise, 3-paragraph "plain English" summary of this contract. Focus on the parties, the main purpose, and the duration.'
+      },
+      {
+        role: 'user',
+        content: `Contract text (first 5000 chars):\n${text.substring(0, 5000)}`
+      }
+    ]
+  })
+  return res.choices[0].message.content
+}
+
+const extractClauses = async (text) => {
+  const res = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a legal expert. Extract the key clauses (Payment, Termination, Liability, Confidentiality) from this contract. Return a JSON object with these keys and a 1-sentence description for each.'
+      },
+      {
+        role: 'user',
+        content: `Contract text (first 5000 chars):\n${text.substring(0, 5000)}`
+      }
+    ]
+  })
+  return JSON.parse(res.choices[0].message.content)
+}
+
+module.exports = { embedText, streamAnswer, summarizeContract, extractClauses }

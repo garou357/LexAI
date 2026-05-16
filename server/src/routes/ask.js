@@ -21,13 +21,33 @@ router.get('/ask', authenticateToken, async (req, res) => {
     // 1.5 Embed the question
     const questionEmbedding = await embedText(q)
 
-    // 2. Find top 10 most relevant chunks using cosine similarity
+    // 2. Hybrid Search using Reciprocal Rank Fusion (RRF)
     const { rows } = await pool.query(
-      `SELECT chunk_text FROM chunks
-       WHERE document_id = $1
-       ORDER BY embedding <=> $2::vector
-       LIMIT 10`,
-      [docId, JSON.stringify(questionEmbedding)]
+      `WITH vector_search AS (
+        SELECT id, row_number() OVER (ORDER BY embedding <=> $2::vector) as rank
+        FROM chunks
+        WHERE document_id = $1
+        ORDER BY embedding <=> $2::vector
+        LIMIT 20
+      ),
+      text_search AS (
+        SELECT id, row_number() OVER (ORDER BY ts_rank_cd(tsv, plainto_tsquery('english', $3)) DESC) as rank
+        FROM chunks
+        WHERE document_id = $1 AND tsv @@ plainto_tsquery('english', $3)
+        ORDER BY ts_rank_cd(tsv, plainto_tsquery('english', $3)) DESC
+        LIMIT 20
+      )
+      SELECT 
+        chunks.chunk_text,
+        COALESCE(1.0 / (60 + vector_search.rank), 0) +
+        COALESCE(1.0 / (60 + text_search.rank), 0) as rrf_score
+      FROM chunks
+      LEFT JOIN vector_search ON chunks.id = vector_search.id
+      LEFT JOIN text_search ON chunks.id = text_search.id
+      WHERE vector_search.id IS NOT NULL OR text_search.id IS NOT NULL
+      ORDER BY rrf_score DESC
+      LIMIT 10`,
+      [docId, JSON.stringify(questionEmbedding), q]
     )
 
     if (rows.length === 0) return res.status(404).json({ error: 'No chunks found for this document' })

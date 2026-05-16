@@ -58,9 +58,18 @@ const DocumentList = ({ documents, activeDoc, setActiveDoc, onRemoveDoc }) => {
               }}>
                 {doc.filename}
               </span>
+              {doc.status !== 'completed' && (
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: doc.status === 'failed' ? '#ef4444' : '#3b82f6',
+                  animation: doc.status === 'failed' ? 'none' : 'pulse 1.5s infinite'
+                }} />
+              )}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '24px' }}>
-              {doc.chunks} chunks {activeDoc?.id === doc.id && '• active'}
+              {doc.status === 'completed' ? `${doc.chunks} chunks` : doc.status} {activeDoc?.id === doc.id && '• active'}
             </div>
           </div>
           
