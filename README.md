@@ -1,5 +1,7 @@
 # LexAI - Legal Contract Analyst ⚖️🤖
 
+**Live Demo:** [https://lex-ai-app.vercel.app/](https://lex-ai-app.vercel.app/)
+
 LexAI is an enterprise-grade **Retrieval-Augmented Generation (RAG)** application designed to transform how individuals and businesses interact with legal documents. It acts as an intelligent assistant that helps you understand, query, and compare complex contracts in seconds.
 
 ---
