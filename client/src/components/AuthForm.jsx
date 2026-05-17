@@ -52,8 +52,9 @@ const AuthForm = ({ onAuthSuccess }) => {
         backgroundColor: '#1e1e1e',
         border: '1px solid var(--border-color)',
         borderRadius: '24px',
-        width: '440px',
-        padding: '48px',
+        width: '100%',
+        maxWidth: '440px',
+        padding: 'clamp(24px, 5vw, 48px)',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '32px' }}>

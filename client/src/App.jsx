@@ -4,7 +4,7 @@ import ChatArea from './components/ChatArea'
 import Toast from './components/Toast'
 import AuthForm from './components/AuthForm'
 import ComparisonView from './components/ComparisonView'
-import { LogOut } from 'lucide-react'
+import { LogOut, Menu, X as CloseIcon } from 'lucide-react'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -19,6 +19,7 @@ function App() {
     }
   })
   const [currentView, setCurrentView] = useState('chat')
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   
   const [documents, setDocuments] = useState([])
   const [activeDoc, setActiveDoc] = useState(null)
@@ -174,22 +175,38 @@ function App() {
   }
 
   return (
-    <div className="main-wrapper">
+    <div className={`main-wrapper ${isMobileSidebarOpen ? 'sidebar-open' : ''}`}>
       <nav className="top-nav">
         <div className="nav-container">
-          <div className="nav-tabs">
-            <button 
-              className={`nav-tab ${currentView === 'chat' ? 'active' : ''}`}
-              onClick={() => setCurrentView('chat')}
-            >
-              Main chat
-            </button>
-            <button 
-              className={`nav-tab ${currentView === 'comparison' ? 'active' : ''}`}
-              onClick={() => setCurrentView('comparison')}
-            >
-              Document comparison
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {currentView === 'chat' && (
+              <button 
+                className="mobile-menu-toggle"
+                onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              >
+                {isMobileSidebarOpen ? <CloseIcon size={20} /> : <Menu size={20} />}
+              </button>
+            )}
+            <div className="nav-tabs">
+              <button 
+                className={`nav-tab ${currentView === 'chat' ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentView('chat')
+                  setIsMobileSidebarOpen(false)
+                }}
+              >
+                Main chat
+              </button>
+              <button 
+                className={`nav-tab ${currentView === 'comparison' ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentView('comparison')
+                  setIsMobileSidebarOpen(false)
+                }}
+              >
+                Document comparison
+              </button>
+            </div>
           </div>
 
           <button className="logout-btn" onClick={handleLogout} title={`Logout (${user?.email})`}>
@@ -202,14 +219,20 @@ function App() {
       <div className="app-container">
         {currentView === 'chat' ? (
           <>
-            <Sidebar 
-              documents={documents} 
-              activeDoc={activeDoc} 
-              setActiveDoc={setActiveDoc}
-              onUploadSuccess={fetchDocuments}
-              onRemoveDoc={handleRemoveDoc}
-              token={token}
-            />
+            <div className={`sidebar-overlay ${isMobileSidebarOpen ? 'visible' : ''}`} onClick={() => setIsMobileSidebarOpen(false)} />
+            <div className={`sidebar-wrapper ${isMobileSidebarOpen ? 'open' : ''}`}>
+              <Sidebar 
+                documents={documents} 
+                activeDoc={activeDoc} 
+                setActiveDoc={(doc) => {
+                  setActiveDoc(doc)
+                  setIsMobileSidebarOpen(false)
+                }}
+                onUploadSuccess={fetchDocuments}
+                onRemoveDoc={handleRemoveDoc}
+                token={token}
+              />
+            </div>
             <ChatArea 
               activeDoc={activeDoc} 
               messages={messages} 

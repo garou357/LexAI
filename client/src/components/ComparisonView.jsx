@@ -132,10 +132,10 @@ const ComparisonView = ({ documents, token, onUploadSuccess }) => {
           <p style={{ fontSize: '16px', color: 'var(--text-muted)' }}>Compare two legal documents side-by-side</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: '32px', marginBottom: '40px' }}>
+        <div className="comparison-slots">
           {renderSlot(1, docId1, setDocId1)}
           
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="comparison-divider">
             <div style={{ 
               backgroundColor: '#3b82f6', 
               width: '48px', 
