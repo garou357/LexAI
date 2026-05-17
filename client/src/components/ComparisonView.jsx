@@ -23,8 +23,9 @@ const ComparisonView = ({ documents, token, onUploadSuccess }) => {
     setIsLoading(true)
     setResult('')
 
+    const API_BASE = import.meta.env.VITE_API_URL || ''
     try {
-      const res = await fetch('/api/compare', {
+      const res = await fetch(`${API_BASE}/api/compare`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

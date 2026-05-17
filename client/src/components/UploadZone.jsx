@@ -12,8 +12,9 @@ const UploadZone = ({ onUploadSuccess, token }) => {
     const formData = new FormData()
     formData.append('pdf', file)
 
+    const API_BASE = import.meta.env.VITE_API_URL || ''
     try {
-      const res = await fetch('/api/ingest', {
+      const res = await fetch(`${API_BASE}/api/ingest`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
