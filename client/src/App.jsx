@@ -33,7 +33,7 @@ function App() {
   const fetchDocuments = async () => {
     if (!token) return
     try {
-      const res = await fetch(`${API_BASE}/api/documents', {
+      const res = await fetch(`${API_BASE}/api/documents`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.status === 401 || res.status === 403) return handleLogout()
