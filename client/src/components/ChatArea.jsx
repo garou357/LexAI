@@ -1,10 +1,31 @@
 import React, { useRef, useEffect } from 'react'
 import Message from './Message'
 import ChatInput from './ChatInput'
-import { FileText, MoreHorizontal } from 'lucide-react'
+import { FileText, MoreHorizontal, Download } from 'lucide-react'
 
-const ChatArea = ({ activeDoc, messages, onSendMessage, isTyping }) => {
+const ChatArea = ({ activeDoc, messages, onSendMessage, isTyping, token }) => {
   const messagesEndRef = useRef(null)
+
+  const handleExport = async () => {
+    if (!activeDoc || !token) return
+    
+    try {
+      const res = await fetch(`/api/documents/${activeDoc.id}/export`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `LexAI_Report_${activeDoc.filename.replace('.pdf', '')}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch (err) {
+      console.error('Export failed', err)
+    }
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -36,8 +57,28 @@ const ChatArea = ({ activeDoc, messages, onSendMessage, isTyping }) => {
             </div>
           )}
         </div>
-        <div style={{ color: 'var(--text-muted)', cursor: 'pointer' }}>
-          <MoreHorizontal size={20} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {activeDoc && messages.length > 0 && (
+            <button 
+              onClick={handleExport}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '13px',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <Download size={16} />
+              Export QnA
+            </button>
+          )}
         </div>
       </div>
 
@@ -62,7 +103,9 @@ const ChatArea = ({ activeDoc, messages, onSendMessage, isTyping }) => {
                 {Object.entries(activeDoc.clauses).map(([name, desc]) => (
                   <div key={name} style={{ backgroundColor: '#252525', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ fontWeight: '600', fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{name}</div>
-                    <div style={{ fontSize: '13px', color: '#cbd5e1' }}>{desc}</div>
+                    <div style={{ fontSize: '13px', color: '#cbd5e1' }}>
+                      {typeof desc === 'object' ? (desc.description || JSON.stringify(desc)) : desc}
+                    </div>
                   </div>
                 ))}
               </div>

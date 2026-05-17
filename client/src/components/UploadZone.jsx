@@ -18,8 +18,9 @@ const UploadZone = ({ onUploadSuccess, token }) => {
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       })
+      const data = await res.json()
       if (res.ok) {
-        onUploadSuccess()
+        onUploadSuccess(data)
       }
     } catch (err) {
       console.error('Upload failed', err)

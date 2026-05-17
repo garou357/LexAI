@@ -2,7 +2,7 @@ const express = require('express')
 const multer = require('multer')
 const { pool } = require('../db')
 const { authenticateToken } = require('../middleware/auth')
-const { extractText } = require('../services/pdf')
+const { extractTextWithPages } = require('../services/pdf')
 const { chunkText } = require('../services/chunker')
 const { embedText, summarizeContract, extractClauses } = require('../services/ai')
 
@@ -17,28 +17,31 @@ const processDocument = async (documentId, buffer) => {
     // 1. Update status to processing
     await pool.query('UPDATE documents SET status = $1 WHERE id = $2', ['processing', documentId])
 
-    // 2. Extract Text
-    const text = await extractText(buffer)
+    // 2. Extract Text Page by Page
+    const pages = await extractTextWithPages(buffer)
+    const fullText = pages.map(p => p.text).join('\n')
 
     // 3. Summarize & Extract Clauses (AI tasks)
-    const summary = await summarizeContract(text)
-    const clauses = await extractClauses(text)
+    const summary = await summarizeContract(fullText)
+    const clauses = await extractClauses(fullText)
 
-    // 4. Chunk & Embed
-    const chunks = chunkText(text)
-    const BATCH_SIZE = 50
-
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      const batch = chunks.slice(i, i + BATCH_SIZE)
-      await Promise.all(batch.map(async (chunk, j) => {
-        const idx = i + j
-        const embedding = await embedText(chunk)
-        await pool.query(
-          `INSERT INTO chunks (document_id, chunk_index, chunk_text, embedding, tsv)
-           VALUES ($1, $2, $3, $4, to_tsvector('english', $3))`,
-          [documentId, idx, chunk, JSON.stringify(embedding)]
-        )
-      }))
+    // 4. Chunk & Embed per page
+    let chunkCount = 0
+    for (const pageData of pages) {
+      const pageChunks = chunkText(pageData.text)
+      
+      const BATCH_SIZE = 20 // Smaller batches for per-page processing
+      for (let i = 0; i < pageChunks.length; i += BATCH_SIZE) {
+        const batch = pageChunks.slice(i, i + BATCH_SIZE)
+        await Promise.all(batch.map(async (chunk, j) => {
+          const embedding = await embedText(chunk)
+          await pool.query(
+            `INSERT INTO chunks (document_id, chunk_index, page_number, chunk_text, embedding, tsv)
+             VALUES ($1, $2, $3, $4, $5, to_tsvector('english', $4))`,
+            [documentId, chunkCount++, pageData.page, chunk, JSON.stringify(embedding)]
+          )
+        }))
+      }
     }
 
     // 5. Final update

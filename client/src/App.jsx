@@ -3,12 +3,20 @@ import Sidebar from './components/Sidebar'
 import ChatArea from './components/ChatArea'
 import Toast from './components/Toast'
 import AuthForm from './components/AuthForm'
+import ComparisonView from './components/ComparisonView'
+import { LogOut } from 'lucide-react'
 import './App.css'
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('lexai_token'))
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('lexai_user') || 'null'))
-  const [currentView, setCurrentView] = useState('chat') // 'chat' or 'comparison'
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('lexai_user') || 'null')
+    } catch {
+      return null
+    }
+  })
+  const [currentView, setCurrentView] = useState('chat')
   
   const [documents, setDocuments] = useState([])
   const [activeDoc, setActiveDoc] = useState(null)
@@ -30,11 +38,11 @@ function App() {
       const data = await res.json()
       setDocuments(data)
       
-      // Update activeDoc if it exists in the new list
+      // Update activeDoc if it exists in the new list to get latest status/summary
       if (activeDoc) {
         const updatedActive = data.find(d => d.id === activeDoc.id)
         if (updatedActive) setActiveDoc(updatedActive)
-      } else if (data.length > 0) {
+      } else if (data.length > 0 && !activeDoc) {
         setActiveDoc(data[0])
       }
     } catch (err) {
@@ -68,7 +76,7 @@ function App() {
   }, [documents, token])
 
   useEffect(() => {
-    if (activeDoc && token) {
+    if (activeDoc && token && currentView === 'chat') {
       const fetchMessages = async () => {
         try {
           const res = await fetch(`/api/documents/${activeDoc.id}/messages`, {
@@ -82,10 +90,10 @@ function App() {
         }
       }
       fetchMessages()
-    } else {
+    } else if (currentView === 'chat') {
       setMessages([])
     }
-  }, [activeDoc, token])
+  }, [activeDoc, token, currentView])
 
   const handleSendMessage = async (text) => {
     if (!activeDoc || !token) return
@@ -166,21 +174,25 @@ function App() {
   return (
     <div className="main-wrapper">
       <nav className="top-nav">
-        <div className="nav-tabs">
-          <button 
-            className={`nav-tab ${currentView === 'chat' ? 'active' : ''}`}
-            onClick={() => setCurrentView('chat')}
-          >
-            Main chat
-          </button>
-          <button className="nav-tab" onClick={handleLogout}>
-            Logout ({user?.email})
-          </button>
-          <button 
-            className={`nav-tab ${currentView === 'comparison' ? 'active' : ''}`}
-            onClick={() => setCurrentView('comparison')}
-          >
-            Document comparison
+        <div className="nav-container">
+          <div className="nav-tabs">
+            <button 
+              className={`nav-tab ${currentView === 'chat' ? 'active' : ''}`}
+              onClick={() => setCurrentView('chat')}
+            >
+              Main chat
+            </button>
+            <button 
+              className={`nav-tab ${currentView === 'comparison' ? 'active' : ''}`}
+              onClick={() => setCurrentView('comparison')}
+            >
+              Document comparison
+            </button>
+          </div>
+
+          <button className="logout-btn" onClick={handleLogout} title={`Logout (${user?.email})`}>
+            <span className="user-email">{user?.email}</span>
+            <LogOut size={18} />
           </button>
         </div>
       </nav>
@@ -201,12 +213,11 @@ function App() {
               messages={messages} 
               onSendMessage={handleSendMessage}
               isTyping={isTyping}
+              token={token}
             />
           </>
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-            <h2>Document Comparison View (Coming Soon in Phase 4)</h2>
-          </div>
+          <ComparisonView documents={documents} token={token} onUploadSuccess={fetchDocuments} />
         )}
       </div>
       

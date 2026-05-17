@@ -46,9 +46,21 @@ const initDb = async () => {
       document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
       chunk_text TEXT NOT NULL,
       chunk_index INTEGER NOT NULL,
+      page_number INTEGER,
       embedding vector(1536),
-      tsv tsvector -- Full-text search column
+      tsv tsvector
     );
+
+    -- Ensure chunks has all required columns for existing tables
+    DO $$ 
+    BEGIN 
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chunks' AND column_name='page_number') THEN
+        ALTER TABLE chunks ADD COLUMN page_number INTEGER;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chunks' AND column_name='tsv') THEN
+        ALTER TABLE chunks ADD COLUMN tsv tsvector;
+      END IF;
+    END $$;
 
     ALTER TABLE chunks ALTER COLUMN embedding TYPE vector(1536);
 
@@ -61,8 +73,18 @@ const initDb = async () => {
       document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
       role TEXT NOT NULL,
       content TEXT NOT NULL,
+      question_embedding vector(1536),
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    DO $$ 
+    BEGIN 
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='question_embedding') THEN
+        ALTER TABLE messages ADD COLUMN question_embedding vector(1536);
+      END IF;
+    END $$;
+
+    ALTER TABLE messages ALTER COLUMN question_embedding TYPE vector(1536);
   `)
   console.log('DB ready')
 }
