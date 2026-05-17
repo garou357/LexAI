@@ -13,7 +13,8 @@ const AuthForm = ({ onAuthSuccess }) => {
     setError('')
     setIsLoading(true)
 
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup'
+    const API_BASE = import.meta.env.VITE_API_URL || ''
+    const endpoint = isLogin ? `${API_BASE}/api/auth/login` : `${API_BASE}/api/auth/signup`
     
     try {
       const res = await fetch(endpoint, {
