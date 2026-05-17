@@ -7,6 +7,8 @@ import ComparisonView from './components/ComparisonView'
 import { LogOut } from 'lucide-react'
 import './App.css'
 
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('lexai_token'))
   const [user, setUser] = useState(() => {
@@ -31,7 +33,7 @@ function App() {
   const fetchDocuments = async () => {
     if (!token) return
     try {
-      const res = await fetch('/api/documents', {
+      const res = await fetch(`${API_BASE}/api/documents', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.status === 401 || res.status === 403) return handleLogout()
@@ -79,7 +81,7 @@ function App() {
     if (activeDoc && token && currentView === 'chat') {
       const fetchMessages = async () => {
         try {
-          const res = await fetch(`/api/documents/${activeDoc.id}/messages`, {
+          const res = await fetch(`${API_BASE}/api/documents/${activeDoc.id}/messages`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
           if (res.status === 401 || res.status === 403) return handleLogout()
@@ -103,7 +105,7 @@ function App() {
     setIsTyping(true)
 
     try {
-      const res = await fetch(`/api/ask?docId=${activeDoc.id}&q=${encodeURIComponent(text)}`, {
+      const res = await fetch(`${API_BASE}/api/ask?docId=${activeDoc.id}&q=${encodeURIComponent(text)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.status === 401 || res.status === 403) return handleLogout()
@@ -146,7 +148,7 @@ function App() {
   const handleRemoveDoc = async (id) => {
     if (!token) return
     try {
-      const res = await fetch(`/api/documents/${id}`, { 
+      const res = await fetch(`${API_BASE}/api/documents/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
